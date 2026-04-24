@@ -15,7 +15,8 @@ module.exports = {
     password: required('PAYLOV_PASSWORD'),
     consumerKey: required('PAYLOV_CONSUMER_KEY'),
     consumerSecret: required('PAYLOV_CONSUMER_SECRET'),
-    // Required only for checkout link generation, not for direct API payments
     merchantId: process.env.PAYLOV_MERCHANT_ID || null,
+    // Checkout frontend URL — separate from the API base URL
+    checkoutUrl: process.env.PAYLOV_CHECKOUT_URL || 'https://my.paylov.uz',
   },
 };

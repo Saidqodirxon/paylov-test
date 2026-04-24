@@ -14,7 +14,6 @@ axiosRetry(client, {
   retryDelay: axiosRetry.exponentialDelay,
   retryCondition: (error) => {
     const status = error.response?.status;
-    // retry on network errors and 5xx, but NOT on 401/400 (those need fresh tokens or are user errors)
     return axiosRetry.isNetworkOrIdempotentRequestError(error) || status >= 500;
   },
   onRetry: (retryCount, error) => {
@@ -43,7 +42,6 @@ async function authorizedRequest(method, path, data = null, params = null) {
     return response.data;
   } catch (error) {
     if (error.response?.status === 401) {
-      // Token expired mid-flight — clear cache and retry once with fresh token
       logger.warn('Token expired, refreshing and retrying');
       clearToken();
       const freshToken = await getAccessToken();
@@ -57,7 +55,6 @@ async function authorizedRequest(method, path, data = null, params = null) {
 function normalizeError(error) {
   const status = error.response?.status;
   const detail = error.response?.data?.detail || error.response?.data?.message || error.message;
-
   const err = new Error(detail || 'Paylov API error');
   err.statusCode = status || 500;
   err.paylovData = error.response?.data;
@@ -67,30 +64,41 @@ function normalizeError(error) {
 // ─── Card Management ───────────────────────────────────────────────────────────
 
 async function createCard({ userId, cardNumber, expireDate, phoneNumber }) {
+  if (!userId) throw Object.assign(new Error('userId is required'), { statusCode: 400 });
+
   logger.info('Creating card', { userId, phoneNumber });
-  // Paylov automatically sends an OTP SMS to phoneNumber — we do not send SMS
+
   const data = await authorizedRequest('POST', '/merchant/userCard/createUserCard/', {
     userId,
     cardNumber,
     expireDate,
     phoneNumber,
   });
-  logger.info('Card creation initiated — OTP sent by Paylov', { userId, cid: data.cid || data.cardId });
+
+  // Paylov returns `cid` — used in the next step (confirmUserCardCreate)
+  logger.info('Card creation initiated — OTP sent by Paylov', { userId, cid: data.cid });
   return data;
 }
 
-async function confirmCard({ cardId, otp, cardName }) {
-  logger.info('Confirming card OTP', { cardId });
+// cid is returned from createCard (createUserCard step)
+// After confirm, Paylov returns cardId — used for payments
+async function confirmCard({ cid, otp, cardName }) {
+  if (!cid) throw Object.assign(new Error('cid is required'), { statusCode: 400 });
+
+  logger.info('Confirming card OTP', { cid });
+
   const data = await authorizedRequest('POST', '/merchant/userCard/confirmUserCardCreate/', {
-    cardId,
+    cid,
     otp,
     cardName,
   });
-  logger.info('Card confirmed', { cardId });
+
+  logger.info('Card confirmed', { cid, cardId: data.cardId });
   return data;
 }
 
 async function getCard(cardId) {
+  if (!cardId) throw Object.assign(new Error('cardId is required'), { statusCode: 400 });
   logger.info('Fetching card', { cardId });
   return authorizedRequest('GET', `/merchant/userCard/getCard/${cardId}/`);
 }
@@ -98,55 +106,80 @@ async function getCard(cardId) {
 // ─── Payment Flow ──────────────────────────────────────────────────────────────
 
 async function createTransaction({ userId, amount, account }) {
-  logger.info('Creating transaction', { userId, amount });
+  if (!userId) throw Object.assign(new Error('userId is required'), { statusCode: 400 });
+
+  const numAmount = Number(amount);
+  if (!numAmount || numAmount <= 0) {
+    throw Object.assign(new Error('amount must be a positive number'), { statusCode: 400 });
+  }
+
+  logger.info('Creating transaction', { userId, amount: numAmount });
+
   const data = await authorizedRequest('POST', '/merchant/receipts/create/', {
     userId,
-    amount,
+    amount: numAmount,
     account,
   });
-  logger.info('Transaction created', { transactionId: data.transactionId });
+
+  logger.info('Transaction created', { transactionId: data.transactionId || data.id });
   return data;
 }
 
 async function payTransaction({ transactionId, cardId, userId }) {
+  if (!userId) throw Object.assign(new Error('userId is required'), { statusCode: 400 });
+  if (!transactionId) throw Object.assign(new Error('transactionId is required'), { statusCode: 400 });
+  if (!cardId) throw Object.assign(new Error('cardId is required'), { statusCode: 400 });
+
   logger.info('Executing payment', { transactionId, cardId, userId });
+
   const data = await authorizedRequest('POST', '/merchant/receipts/pay/', {
     transactionId,
     cardId,
     userId,
   });
+
   logger.info('Payment executed', { transactionId, status: data.status });
   return data;
 }
 
 async function getTransaction(transactionId) {
+  if (!transactionId) throw Object.assign(new Error('transactionId is required'), { statusCode: 400 });
   logger.info('Fetching transaction status', { transactionId });
   return authorizedRequest('GET', '/merchant/getTransactions/', null, { transactionId });
 }
 
 // ─── Payment Link ──────────────────────────────────────────────────────────────
 
-// Checkout link does not require card binding — user pays manually on Paylov's page.
-// merchant_id MUST come from env (PAYLOV_MERCHANT_ID), not from the request.
 function generatePaymentLink({ amount, returnUrl, orderId }) {
   if (!config.paylov.merchantId) {
-    const err = new Error('PAYLOV_MERCHANT_ID is not configured');
-    err.statusCode = 500;
-    throw err;
+    throw Object.assign(
+      new Error('PAYLOV_MERCHANT_ID is not configured in environment variables'),
+      { statusCode: 500 }
+    );
   }
 
-  const query = new URLSearchParams({
-    merchant_id: config.paylov.merchantId,
-    amount: String(amount),
-    return_url: returnUrl,
+  const numAmount = Number(amount);
+  if (!numAmount || numAmount <= 0) {
+    throw Object.assign(new Error('amount must be a positive number'), { statusCode: 400 });
+  }
+
+  if (!returnUrl) throw Object.assign(new Error('returnUrl is required'), { statusCode: 400 });
+  if (!orderId)   throw Object.assign(new Error('orderId is required'),   { statusCode: 400 });
+
+  const queryObj = {
+    merchant_id:       config.paylov.merchantId,
+    amount:            String(numAmount),
+    return_url:        returnUrl,
     'account.order_id': orderId,
-  }).toString();
+  };
 
+  const query   = new URLSearchParams(queryObj).toString();
   const encoded = Buffer.from(query).toString('base64');
-  const link = `${config.paylov.baseUrl}/checkout/create/${encoded}`;
+  // Checkout URL is the Paylov frontend — NOT the API base URL
+  const link    = `${config.paylov.checkoutUrl}/checkout/create/${encoded}`;
 
-  logger.info('Checkout link generated', { orderId, amount });
-  return { link, encoded };
+  logger.info('Checkout link generated', { orderId, amount: numAmount, query, encoded, link });
+  return { link, encoded, query };
 }
 
 module.exports = {

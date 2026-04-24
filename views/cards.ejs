@@ -74,8 +74,8 @@
           </div>
           <div class="grid">
             <div class="field">
-              <label>cardId * (avtomatik to'ldirildi)</label>
-              <input id="conf-cardId" readonly style="background:#0a1422" />
+              <label>cid * (avtomatik to'ldirildi)</label>
+              <input id="conf-cid" readonly style="background:#0a1422" />
             </div>
             <div class="field">
               <label>OTP kod *</label>
@@ -195,8 +195,8 @@
       });
       const json = await res.json();
       show('cc-resp', json, res.ok);
-      if (res.ok && json.data && json.data.cardId) {
-        document.getElementById('conf-cardId').value = json.data.cardId;
+      if (res.ok && json.data && json.data.cid) {
+        document.getElementById('conf-cid').value = json.data.cid;
         goStep(2);
       }
     } catch(e) { show('cc-resp', { error: e.message }, false); }
@@ -205,7 +205,7 @@
 
   async function confirmCard() {
     setLoading('conf-btn', 'conf-spin', true);
-    const body = { cardId: val('conf-cardId'), otp: val('conf-otp') };
+    const body = { cid: val('conf-cid'), otp: val('conf-otp') };
     const n = val('conf-name');
     if (n) body.cardName = n;
     try {
@@ -215,8 +215,9 @@
       const json = await res.json();
       show('cc-resp', json, res.ok);
       if (res.ok) {
-        const cid = json.data?.card?.id || json.data?.cardId || val('conf-cardId');
-        document.getElementById('saved-cardId').value = cid;
+        // After confirm, Paylov returns cardId — use this for payments
+        const cardId = json.data?.cardId || json.data?.card?.id;
+        document.getElementById('saved-cardId').value = cardId || '';
         goStep(3);
       }
     } catch(e) { show('cc-resp', { error: e.message }, false); }

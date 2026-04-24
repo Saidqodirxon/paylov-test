@@ -1,8 +1,6 @@
 const paylov = require('../services/paylov.service');
 const logger = require('../utils/logger');
 
-// In a real app, cards marked inactive would live in a real DB.
-// This in-memory store is intentionally minimal — swap for your ORM/DB layer.
 const deletedCards = new Set();
 
 function asyncHandler(fn) {
@@ -12,13 +10,24 @@ function asyncHandler(fn) {
 // ─── Cards ────────────────────────────────────────────────────────────────────
 
 exports.createCard = asyncHandler(async (req, res) => {
-  const result = await paylov.createCard(req.body);
+  const { userId, cardNumber, expireDate, phoneNumber } = req.body;
+
+  logger.info('POST /cards', { userId, phoneNumber });
+
+  const result = await paylov.createCard({ userId, cardNumber, expireDate, phoneNumber });
+
+  // result.cid is returned — frontend must pass it to POST /cards/confirm
   res.status(201).json({ success: true, data: result });
 });
 
 exports.confirmCard = asyncHandler(async (req, res) => {
-  const result = await paylov.confirmCard(req.body);
-  // Persist result.cardId in your DB here
+  const { cid, otp, cardName } = req.body;
+
+  logger.info('POST /cards/confirm', { cid });
+
+  const result = await paylov.confirmCard({ cid, otp, cardName });
+
+  // result.cardId is returned — use this for payments
   res.json({ success: true, data: result });
 });
 
@@ -43,20 +52,30 @@ exports.deleteCard = asyncHandler(async (req, res) => {
 // ─── Payments ─────────────────────────────────────────────────────────────────
 
 exports.createTransaction = asyncHandler(async (req, res) => {
-  const result = await paylov.createTransaction(req.body);
+  const { userId, amount, account } = req.body;
+
+  logger.info('POST /transactions', { userId, amount });
+
+  const result = await paylov.createTransaction({ userId, amount, account });
   res.status(201).json({ success: true, data: result });
 });
 
 exports.payTransaction = asyncHandler(async (req, res) => {
-  const result = await paylov.payTransaction(req.body);
+  const { transactionId, cardId, userId } = req.body;
+
+  logger.info('POST /transactions/pay', { transactionId, cardId, userId });
+
+  const result = await paylov.payTransaction({ transactionId, cardId, userId });
   res.json({ success: true, data: result });
 });
 
 exports.getTransaction = asyncHandler(async (req, res) => {
   const { transactionId } = req.query;
+
   if (!transactionId) {
     return res.status(400).json({ success: false, error: 'transactionId query param is required' });
   }
+
   const result = await paylov.getTransaction(transactionId);
   res.json({ success: true, data: result });
 });
@@ -64,6 +83,10 @@ exports.getTransaction = asyncHandler(async (req, res) => {
 // ─── Payment Link ─────────────────────────────────────────────────────────────
 
 exports.generatePaymentLink = asyncHandler(async (req, res) => {
-  const result = paylov.generatePaymentLink(req.body);
+  const { amount, returnUrl, orderId } = req.body;
+
+  logger.info('POST /payment-link', { amount, orderId, returnUrl });
+
+  const result = paylov.generatePaymentLink({ amount, returnUrl, orderId });
   res.json({ success: true, data: result });
 });
