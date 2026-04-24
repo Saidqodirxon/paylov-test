@@ -1,0 +1,86 @@
+### Health check
+GET http://localhost:5000/health
+
+
+# ─── CARD FLOW ──────────────────────────────────────────────────────────────────
+# Step 1: Create card → Paylov sends OTP SMS to phoneNumber automatically
+# Step 2: User receives OTP → call /cards/confirm
+# Step 3: Store the returned cardId from confirm response
+
+### 1. Create Card  (Paylov sends OTP SMS — you do NOT send SMS)
+POST http://localhost:5000/api/v1/payment/cards
+Content-Type: application/json
+
+{
+  "userId": "user_123",
+  "cardNumber": "8600123456789012",
+  "expireDate": "0126",
+  "phoneNumber": "+998901234567"
+}
+
+
+### 2. Confirm Card OTP  → returns final cardId, store it in your DB
+POST http://localhost:5000/api/v1/payment/cards/confirm
+Content-Type: application/json
+
+{
+  "cardId": "{{cid_from_step_1}}",
+  "otp": "123456",
+  "cardName": "My Uzcard"
+}
+
+
+### 3. Get Card
+GET http://localhost:5000/api/v1/payment/cards/{{cardId}}
+
+
+### 4. Delete (deactivate) Card  — marks inactive in DB, no Paylov API call
+DELETE http://localhost:5000/api/v1/payment/cards/{{cardId}}
+
+
+# ─── DIRECT PAYMENT FLOW (API) ─────────────────────────────────────────────────
+# Auth: Bearer access_token only — merchant_id is NOT sent here
+# Step 5 → Step 6 → Step 7
+
+### 5. Create Transaction
+POST http://localhost:5000/api/v1/payment/transactions
+Content-Type: application/json
+
+{
+  "userId": "user_123",
+  "amount": 50000,
+  "account": {
+    "order_id": "ORDER-001",
+    "description": "Purchase #001"
+  }
+}
+
+
+### 6. Pay (charge the card)
+POST http://localhost:5000/api/v1/payment/transactions/pay
+Content-Type: application/json
+
+{
+  "transactionId": "{{transactionId_from_step_5}}",
+  "cardId": "{{cardId_from_step_2}}",
+  "userId": "user_123"
+}
+
+
+### 7. Get Transaction Status
+GET http://localhost:5000/api/v1/payment/transactions?transactionId={{transactionId}}
+
+
+# ─── CHECKOUT LINK (no card binding) ───────────────────────────────────────────
+# merchant_id is read from PAYLOV_MERCHANT_ID env — do NOT pass it in the body
+# Returns a URL you redirect the user to for manual payment on Paylov's page
+
+### 8. Generate Checkout Link
+POST http://localhost:5000/api/v1/payment/payment-link
+Content-Type: application/json
+
+{
+  "amount": 50000,
+  "returnUrl": "https://yourapp.com/payment/success",
+  "orderId": "ORDER-001"
+}

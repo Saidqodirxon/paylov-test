@@ -1,0 +1,26 @@
+{
+  "name": "paylov-payment-service",
+  "version": "1.0.0",
+  "description": "Production-ready Paylov payment gateway integration",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.11.2",
+    "joi": "^17.11.0",
+    "axios-retry": "^3.9.1"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22",
+    "eslint": "^8.54.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
