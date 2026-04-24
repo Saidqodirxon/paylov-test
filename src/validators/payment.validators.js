@@ -13,7 +13,7 @@ const cardNumber = Joi.string()
 const expireDate = Joi.string()
   .pattern(/^\d{4}$/)
   .required()
-  .messages({ 'string.pattern.base': 'expireDate must be 4 digits (MMYY)' });
+  .messages({ 'string.pattern.base': 'expireDate must be 4 digits (YYMM format, e.g. 2803 for March 2028)' });
 
 const phoneNumber = Joi.string()
   .pattern(/^\+?[0-9]{10,15}$/)

@@ -55,7 +55,8 @@ async function authorizedRequest(method, path, data = null, params = null) {
 function normalizeError(error) {
   const status   = error.response?.status;
   const data     = error.response?.data;
-  const detail   = data?.detail || data?.message || data?.error || error.message;
+  // Paylov wraps errors as: { result: null, error: { message: "...", code: "..." } }
+  const detail   = data?.error?.message || data?.detail || data?.message || error.message;
 
   // Log the full Paylov response so we can debug field-name / format issues
   logger.error('Paylov API error', { status, paylovResponse: data, url: error.config?.url });
