@@ -95,7 +95,7 @@ async function confirmCard({ cid, otp, cardName }) {
   logger.info('Confirming card OTP', { cid });
 
   const raw    = await authorizedRequest('POST', '/merchant/userCard/confirmUserCardCreate/', {
-    cid,
+    cardId: cid,   // Paylov step 1 returns `cid`, but step 2 expects the same value as `cardId`
     otp,
     cardName,
   });
