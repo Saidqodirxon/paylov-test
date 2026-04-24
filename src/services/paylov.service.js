@@ -53,11 +53,16 @@ async function authorizedRequest(method, path, data = null, params = null) {
 }
 
 function normalizeError(error) {
-  const status = error.response?.status;
-  const detail = error.response?.data?.detail || error.response?.data?.message || error.message;
+  const status   = error.response?.status;
+  const data     = error.response?.data;
+  const detail   = data?.detail || data?.message || data?.error || error.message;
+
+  // Log the full Paylov response so we can debug field-name / format issues
+  logger.error('Paylov API error', { status, paylovResponse: data, url: error.config?.url });
+
   const err = new Error(detail || 'Paylov API error');
-  err.statusCode = status || 500;
-  err.paylovData = error.response?.data;
+  err.statusCode  = status || 500;
+  err.paylovData  = data;
   return err;
 }
 
@@ -66,14 +71,14 @@ function normalizeError(error) {
 async function createCard({ userId, cardNumber, expireDate, phoneNumber }) {
   if (!userId) throw Object.assign(new Error('userId is required'), { statusCode: 400 });
 
-  logger.info('Creating card', { userId, phoneNumber });
+  // Log full request (mask middle digits of card number)
+  const maskedCard = cardNumber.slice(0, 4) + '********' + cardNumber.slice(-4);
+  logger.info('Creating card', { userId, phoneNumber, cardNumber: maskedCard, expireDate });
 
-  const data = await authorizedRequest('POST', '/merchant/userCard/createUserCard/', {
-    userId,
-    cardNumber,
-    expireDate,
-    phoneNumber,
-  });
+  const requestBody = { userId, cardNumber, expireDate, phoneNumber };
+  logger.info('Paylov createUserCard request', { body: { ...requestBody, cardNumber: maskedCard } });
+
+  const data = await authorizedRequest('POST', '/merchant/userCard/createUserCard/', requestBody);
 
   // Paylov returns `cid` — used in the next step (confirmUserCardCreate)
   logger.info('Card creation initiated — OTP sent by Paylov', { userId, cid: data.cid });
@@ -166,20 +171,19 @@ function generatePaymentLink({ amount, returnUrl, orderId }) {
   if (!returnUrl) throw Object.assign(new Error('returnUrl is required'), { statusCode: 400 });
   if (!orderId)   throw Object.assign(new Error('orderId is required'),   { statusCode: 400 });
 
-  const queryObj = {
-    merchant_id:       config.paylov.merchantId,
-    amount:            String(numAmount),
-    return_url:        returnUrl,
-    'account.order_id': orderId,
+  // Paylov checkout expects base64-encoded JSON (not URLSearchParams)
+  const payload = {
+    merchant_id: config.paylov.merchantId,
+    amount:      numAmount,
+    return_url:  returnUrl,
+    account:     { order_id: orderId },
   };
 
-  const query   = new URLSearchParams(queryObj).toString();
-  const encoded = Buffer.from(query).toString('base64');
-  // Checkout URL is the Paylov frontend — NOT the API base URL
+  const encoded = Buffer.from(JSON.stringify(payload)).toString('base64');
   const link    = `${config.paylov.checkoutUrl}/checkout/create/${encoded}`;
 
-  logger.info('Checkout link generated', { orderId, amount: numAmount, query, encoded, link });
-  return { link, encoded, query };
+  logger.info('Checkout link generated', { orderId, amount: numAmount, payload, encoded, link });
+  return { link, encoded, payload };
 }
 
 module.exports = {
