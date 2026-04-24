@@ -79,11 +79,12 @@ async function createCard({ userId, cardNumber, expireDate, phoneNumber }) {
   const requestBody = { userId, cardNumber, expireDate, phoneNumber };
   logger.info('Paylov createUserCard request', { body: { ...requestBody, cardNumber: maskedCard } });
 
-  const data = await authorizedRequest('POST', '/merchant/userCard/createUserCard/', requestBody);
+  const raw    = await authorizedRequest('POST', '/merchant/userCard/createUserCard/', requestBody);
+  const result = raw.result || raw;
 
-  // Paylov returns `cid` — used in the next step (confirmUserCardCreate)
-  logger.info('Card creation initiated — OTP sent by Paylov', { userId, cid: data.cid });
-  return data;
+  // result.cid is used in confirmUserCardCreate step
+  logger.info('Card creation initiated — OTP sent by Paylov', { userId, cid: result.cid, otpSentPhone: result.otpSentPhone });
+  return result;
 }
 
 // cid is returned from createCard (createUserCard step)
@@ -93,20 +94,22 @@ async function confirmCard({ cid, otp, cardName }) {
 
   logger.info('Confirming card OTP', { cid });
 
-  const data = await authorizedRequest('POST', '/merchant/userCard/confirmUserCardCreate/', {
+  const raw    = await authorizedRequest('POST', '/merchant/userCard/confirmUserCardCreate/', {
     cid,
     otp,
     cardName,
   });
+  const result = raw.result || raw;
 
-  logger.info('Card confirmed', { cid, cardId: data.cardId });
-  return data;
+  logger.info('Card confirmed', { cid, cardId: result.cardId });
+  return result;
 }
 
 async function getCard(cardId) {
   if (!cardId) throw Object.assign(new Error('cardId is required'), { statusCode: 400 });
   logger.info('Fetching card', { cardId });
-  return authorizedRequest('GET', `/merchant/userCard/getCard/${cardId}/`);
+  const raw = await authorizedRequest('GET', `/merchant/userCard/getCard/${cardId}/`);
+  return raw.result || raw;
 }
 
 // ─── Payment Flow ──────────────────────────────────────────────────────────────
@@ -121,14 +124,15 @@ async function createTransaction({ userId, amount, account }) {
 
   logger.info('Creating transaction', { userId, amount: numAmount });
 
-  const data = await authorizedRequest('POST', '/merchant/receipts/create/', {
+  const raw    = await authorizedRequest('POST', '/merchant/receipts/create/', {
     userId,
     amount: numAmount,
     account,
   });
+  const result = raw.result || raw;
 
-  logger.info('Transaction created', { transactionId: data.transactionId || data.id });
-  return data;
+  logger.info('Transaction created', { transactionId: result.transactionId || result.id });
+  return result;
 }
 
 async function payTransaction({ transactionId, cardId, userId }) {
@@ -138,20 +142,22 @@ async function payTransaction({ transactionId, cardId, userId }) {
 
   logger.info('Executing payment', { transactionId, cardId, userId });
 
-  const data = await authorizedRequest('POST', '/merchant/receipts/pay/', {
+  const raw    = await authorizedRequest('POST', '/merchant/receipts/pay/', {
     transactionId,
     cardId,
     userId,
   });
+  const result = raw.result || raw;
 
-  logger.info('Payment executed', { transactionId, status: data.status });
-  return data;
+  logger.info('Payment executed', { transactionId, status: result.status });
+  return result;
 }
 
 async function getTransaction(transactionId) {
   if (!transactionId) throw Object.assign(new Error('transactionId is required'), { statusCode: 400 });
   logger.info('Fetching transaction status', { transactionId });
-  return authorizedRequest('GET', '/merchant/getTransactions/', null, { transactionId });
+  const raw = await authorizedRequest('GET', '/merchant/getTransactions/', null, { transactionId });
+  return raw.result || raw;
 }
 
 // ─── Payment Link ──────────────────────────────────────────────────────────────

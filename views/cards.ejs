@@ -69,8 +69,8 @@
 
         <!-- Step 2 form (hidden initially) -->
         <div id="step2-form" style="display:none">
-          <div class="alert alert-info show">
-            📱 Kartangizga bog'liq telefon raqamiga OTP kodi yuborildi
+          <div class="alert alert-info show" id="otp-phone-hint">
+            📱 OTP kodi telefon raqamingizga yuborildi
           </div>
           <div class="grid">
             <div class="field">
@@ -195,9 +195,15 @@
       });
       const json = await res.json();
       show('cc-resp', json, res.ok);
-      if (res.ok && json.data && json.data.cid) {
-        document.getElementById('conf-cid').value = json.data.cid;
-        goStep(2);
+      if (res.ok) {
+        const cid   = json.data?.cid || json.data?.session;
+        const phone = json.data?.otpSentPhone || '';
+        if (cid) {
+          document.getElementById('conf-cid').value = cid;
+          document.getElementById('otp-phone-hint').textContent =
+            phone ? `📱 OTP kodi ${phone} raqamiga yuborildi` : '📱 OTP kodi telefon raqamingizga yuborildi';
+          goStep(2);
+        }
       }
     } catch(e) { show('cc-resp', { error: e.message }, false); }
     setLoading('cc-btn', 'cc-spin', false);
@@ -215,9 +221,9 @@
       const json = await res.json();
       show('cc-resp', json, res.ok);
       if (res.ok) {
-        // After confirm, Paylov returns cardId — use this for payments
-        const cardId = json.data?.cardId || json.data?.card?.id;
-        document.getElementById('saved-cardId').value = cardId || '';
+        // Service unwraps result — cardId is directly on json.data
+        const cardId = json.data?.cardId || json.data?.card_id || json.data?.id || '';
+        document.getElementById('saved-cardId').value = cardId;
         goStep(3);
       }
     } catch(e) { show('cc-resp', { error: e.message }, false); }
