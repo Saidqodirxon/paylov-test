@@ -1,0 +1,161 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<div class="page">
+  <div class="page-header">
+    <h1>🔗 To'lov linki</h1>
+    <p>Foydalanuvchini Paylov checkout sahifasiga yo'naltiruvchi link yaratish</p>
+  </div>
+
+  <!-- API Key -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-body" style="flex-direction:row;align-items:center;gap:10px;padding:12px 18px">
+      <label style="font-size:0.78rem;color:var(--muted);white-space:nowrap;margin:0">X-API-Key:</label>
+      <input type="password" id="gApiKey" placeholder="INTERNAL_API_KEY (bo'sh — dev rejim)" style="margin:0" />
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ── LINK YARATISH ────────────────────────────────────── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <span class="card-title">To'lov linki yaratish</span>
+        <span class="card-path">/payment-link</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>amount * (so'm)</label>
+          <input id="pl-amount" type="number" placeholder="50000" min="1" />
+        </div>
+        <div class="field">
+          <label>orderId *</label>
+          <input id="pl-orderId" placeholder="order_001" />
+        </div>
+        <div class="field">
+          <label>returnUrl * (to'lovdan so'ng yo'naltiriladi)</label>
+          <input id="pl-returnUrl" placeholder="https://sizning-saytingiz.uz/success" />
+        </div>
+        <button class="btn btn-primary" id="pl-btn" onclick="generateLink()">
+          <span class="spinner" id="pl-spin"></span>
+          Link yaratish
+        </button>
+        <pre class="resp" id="pl-resp"></pre>
+      </div>
+    </div>
+
+    <!-- ── NATIJA ─────────────────────────────────────────── -->
+    <div class="card" id="pl-result-card" style="display:none">
+      <div class="card-header">
+        <span class="card-title">✅ Link yaratildi</span>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-success show">
+          Quyidagi linkni foydalanuvchiga yuboring yoki to'g'ridan-to'g'ri oching
+        </div>
+        <div class="field">
+          <label>To'lov linki</label>
+          <div class="copy-row">
+            <input id="pl-link-display" readonly style="font-family:monospace;font-size:0.78rem;background:#0a1422" />
+            <button class="btn-copy" onclick="copyLink()">Nusxa</button>
+          </div>
+        </div>
+        <a id="pl-open-link" href="#" target="_blank" class="btn btn-success" style="margin-top:4px">
+          Ochish ↗
+        </a>
+        <div style="font-size:0.75rem;color:var(--muted);margin-top:8px">
+          Foydalanuvchi ushbu linkga o'tganda Paylov to'lov sahifasiga yo'naltiriladi.
+          To'lovdan so'ng <code style="font-size:0.72rem;background:var(--surface2);padding:1px 5px;border-radius:4px">returnUrl</code> ga qaytadi.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INFO ───────────────────────────────────────────── -->
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-header">
+        <span class="card-title">To'lov linki haqida</span>
+      </div>
+      <div class="card-body" style="gap:8px">
+        <div style="font-size:0.82rem;color:var(--muted);line-height:1.7">
+          <p style="margin-bottom:8px">
+            To'lov linki — karta ma'lumotlarini serverda saqlash shart bo'lmagan hollarda qo'llaniladi.
+            Foydalanuvchi Paylov ning o'z sahifasida to'lovni amalga oshiradi.
+          </p>
+          <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:8px 0;color:var(--text);font-weight:600;width:160px">API bilan to'lov</td>
+              <td style="padding:8px 0">Karta Paylov sistemasida saqlanadi. Keyingi to'lovlarda karta ID ishlatiladi.</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:var(--text);font-weight:600">Checkout linki</td>
+              <td style="padding:8px 0">Karta ma'lumotlari sizning tizimingizga kelmaydi. Bir martalik to'lov.</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const BASE = '/api/v1/payment';
+  const apiKey = () => document.getElementById('gApiKey').value.trim();
+
+  function hdrs() {
+    const h = { 'Content-Type': 'application/json' };
+    const k = apiKey();
+    if (k) h['x-api-key'] = k;
+    return h;
+  }
+
+  function show(id, data, ok) {
+    const el = document.getElementById(id);
+    el.className = 'resp show ' + (ok ? 'ok' : 'err');
+    el.textContent = JSON.stringify(data, null, 2);
+  }
+
+  function val(id) { return document.getElementById(id).value.trim(); }
+  function num(id) { return Number(document.getElementById(id).value); }
+
+  async function generateLink() {
+    const btn = document.getElementById('pl-btn');
+    const spin = document.getElementById('pl-spin');
+    btn.disabled = true; spin.style.display = 'block';
+
+    try {
+      const res = await fetch(BASE + '/payment-link', {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({
+          amount: num('pl-amount'),
+          orderId: val('pl-orderId'),
+          returnUrl: val('pl-returnUrl'),
+        })
+      });
+      const json = await res.json();
+      show('pl-resp', json, res.ok);
+
+      if (res.ok) {
+        const link = json.data?.paymentUrl || json.data?.url || json.data?.link;
+        if (link) {
+          document.getElementById('pl-link-display').value = link;
+          document.getElementById('pl-open-link').href = link;
+          document.getElementById('pl-result-card').style.display = 'block';
+          document.getElementById('pl-result-card').scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    } catch(e) { show('pl-resp', { error: e.message }, false); }
+
+    btn.disabled = false; spin.style.display = 'none';
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(document.getElementById('pl-link-display').value);
+    const btn = event.target;
+    btn.textContent = 'Nusxalandi!';
+    setTimeout(() => btn.textContent = 'Nusxa', 1500);
+  }
+</script>
+
+<%- include('partials/footer') %>

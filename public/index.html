@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paylov Test UI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.6rem;
+      color: #38bdf8;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 0.85rem;
+      color: #64748b;
+      margin-bottom: 32px;
+    }
+
+    .api-key-bar {
+      display: flex;
+      gap: 8px;
+      max-width: 680px;
+      margin: 0 auto 32px;
+      background: #1e293b;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid #334155;
+      align-items: center;
+    }
+
+    .api-key-bar label {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      white-space: nowrap;
+    }
+
+    .api-key-bar input {
+      flex: 1;
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      background: #162032;
+      border-bottom: 1px solid #334155;
+    }
+
+    .method-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 5px;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-post { background: #166534; color: #bbf7d0; }
+    .badge-get  { background: #1e3a8a; color: #bfdbfe; }
+    .badge-del  { background: #7f1d1d; color: #fecaca; }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+
+    .card-path {
+      font-size: 0.72rem;
+      color: #64748b;
+      margin-left: auto;
+      font-family: monospace;
+    }
+
+    .card-body {
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .field-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label {
+      font-size: 0.75rem;
+      color: #94a3b8;
+    }
+
+    input, textarea {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 8px 10px;
+      border-radius: 7px;
+      font-size: 0.85rem;
+      width: 100%;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #38bdf8;
+    }
+
+    textarea { resize: vertical; min-height: 70px; font-family: monospace; font-size: 0.78rem; }
+
+    .btn {
+      background: #0369a1;
+      color: #fff;
+      border: none;
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .btn:hover { background: #0284c7; }
+    .btn:active { background: #0369a1; }
+    .btn-danger { background: #991b1b; }
+    .btn-danger:hover { background: #b91c1c; }
+
+    .response-box {
+      margin-top: 10px;
+      background: #0a1628;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: monospace;
+      font-size: 0.75rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: #7dd3fc;
+      display: none;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .response-box.error { color: #f87171; border-color: #7f1d1d; }
+    .response-box.success { color: #86efac; border-color: #166534; }
+
+    .divider {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #475569;
+      font-size: 0.78rem;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #334155;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Paylov Payment — Test UI</h1>
+<p class="subtitle">Barcha endpointlarni brauzerdan test qiling</p>
+
+<div class="api-key-bar">
+  <label>X-API-Key:</label>
+  <input type="text" id="globalApiKey" placeholder="INTERNAL_API_KEY (bo'sh qoldiring — dev mode)" />
+</div>
+
+<div class="grid">
+
+  <!-- ── KARTA YARATISH ──────────────────────────────────────── -->
+  <div class="divider">Karta operatsiyalari</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge badge-post">POST</span>
+      <span class="card-title">Karta yaratish</span>
+      <span class="card-path">/cards</span>
+    </div>
+    <div class="card-body">
+      <div class="field-row">
+        <label>userId *</label>
+        <input id="cc-userId" placeholder="user_001" value="user_001" />
+      </div>
+      <div class="field-row">
+        <label>cardNumber * (16 raqam)</label>
+        <input id="cc-cardNumber" placeholder="8600123456789012" maxlength="16" />
+      </div>
+      <div class="field-row">
+        <label>expireDate * (MMYY)</label>
+        <input id="cc-expireDate" placeholder="0929" maxlength="4" />
+      </div>
+      <div class="field-row">
+        <label>phoneNumber *</label>
+        <input id="cc-phoneNumber" placeholder="+998901234567" />
+      </div>
+      <button class="btn" onclick="createCard()">Karta yaratish</button>
+      <pre class="response-box" id="cc-resp"></pre>
+    </div>
+  </div>
+
+  <!-- ── KARTA TASDIQLASH ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge badge-post">POST</span>
+      <span class="card-title">Karta tasdiqlash (OTP)</span>
+      <span class="card-path">/cards/confirm</span>
+    </div>
+    <div class="card-body">
+      <div class="field-row">
+        <label>cardId *</label>
+        <input id="conf-cardId" placeholder="Karta yaratishdan olingan ID" />
+      </div>
+      <div class="field-row">
+        <label>otp * (4-8 belgi)</label>
+        <input id="conf-otp" placeholder="1234" maxlength="8" />
+      </div>
+      <div class="field-row">
+        <label>cardName</label>
+        <input id="conf-cardName" placeholder="My Card" value="My Card" />
+      </div>
+      <button class="btn" onclick="confirmCard()">Tasdiqlash</button>
+      <pre class="response-box" id="conf-resp"></pre>
+    </div>
+  </div>
+
+  <!-- ── KARTANI OLISH ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge badge-get">GET</span>
+      <span class="card-title">Karta ma'lumoti</span>
+      <span class="card-path">/cards/:id</span>
+    </div>
+    <div class="card-body">
+      <div class="field-row">
+        <label>cardId *</label>
+        <input id="gc-cardId" placeholder="card_xxx" />
+      </div>
+      <button class="btn" onclick="getCard()">Ma'lumot olish</button>
+      <pre class="response-box" id="gc-resp"></pre>
+    </div>
+  </div>
+
+  <!-- ── KARTANI O'CHIRISH ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge badge-del">DEL</span>
+      <span class="card-title">Kartani o'chirish</span>
+      <span class="card-path">/cards/:id</span>
+    </div>
+    <div class="card-body">
+      <div class="field-row">
+        <label>cardId *</label>
+        <input id="dc-cardId" placeholder="card_xxx" />
+      </div>
+      <button class="btn btn-danger" onclick="deleteCard()">O'chirish</button>
+      <pre class="response-box" id="dc-resp"></pre>
+    </div>
+  </div>
+
+  <!-- ── TO'LOV OPERATSIYALARI ──────────────────────────────────────── -->
+  <div class="divider">To'lov operatsiyalari</div>
+
+  <!-- ── TRANZAKSIYA YARATISH ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge badge-post">POST</span>
+      <span class="card-title">Tranzaksiya yaratish</span>
+      <span class="card-path">/transactions</span>
+    </div>
+    <div class="card-body">
+      <div class="field-row">
+        <label>userId *</label>
+        <input id="ct-userId" placeholder="user_001" value="user_001" />
+      </div>
+      <div class="field-row">
+        <label>amount * (so'm)</label>
+        <input id="ct-amount" type="number" placeholder="10000" />
+      </div>
+      <div class="field-row">
+        <label>account * (JSON)</label>
+        <textarea id="ct-account" placeholder='{"store_id": "123"}'>{}</textarea>
+      </div>
+      <button class="btn" onclick="createTransaction()">Tranzaksiya yaratish</button>
+      <pre class="response-box" id="ct-resp"></pre>
+    </div>
+  </div>
+
+  <!-- ── TO'LOV AMALGA OSHIRISH ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge badge-post">POST</span>
+      <span class="card-title">To'lovni amalga oshirish</span>
+      <span class="card-path">/transactions/pay</span>
+    </div>
+    <div class="card-body">
+      <div class="field-row">
+        <label>transactionId *</label>
+        <input id="pt-transactionId" placeholder="Tranzaksiya IDsi" />
+      </div>
+      <div class="field-row">
+        <label>cardId *</label>
+        <input id="pt-cardId" placeholder="Tasdiqlangan karta IDsi" />
+      </div>
+      <div class="field-row">
+        <label>userId *</label>
+        <input id="pt-userId" placeholder="user_001" value="user_001" />
+      </div>
+      <button class="btn" onclick="payTransaction()">To'lash</button>
+      <pre class="response-box" id="pt-resp"></pre>
+    </div>
+  </div>
+
+  <!-- ── TRANZAKSIYA MA'LUMOTI ──────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge badge-get">GET</span>
+      <span class="card-title">Tranzaksiya ma'lumoti</span>
+      <span class="card-path">/transactions?transactionId=</span>
+    </div>
+    <div class="card-body">
+      <div class="field-row">
+        <label>transactionId *</label>
+        <input id="gt-transactionId" placeholder="txn_xxx" />
+      </div>
+      <button class="btn" onclick="getTransaction()">Ma'lumot olish</button>
+      <pre class="response-box" id="gt-resp"></pre>
+    </div>
+  </div>
+
+  <!-- ── TO'LOV LINKI ──────────────────────────────────────── -->
+  <div class="divider">To'lov linki</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge badge-post">POST</span>
+      <span class="card-title">To'lov linki yaratish</span>
+      <span class="card-path">/payment-link</span>
+    </div>
+    <div class="card-body">
+      <div class="field-row">
+        <label>amount * (so'm)</label>
+        <input id="pl-amount" type="number" placeholder="50000" />
+      </div>
+      <div class="field-row">
+        <label>orderId *</label>
+        <input id="pl-orderId" placeholder="order_001" />
+      </div>
+      <div class="field-row">
+        <label>returnUrl *</label>
+        <input id="pl-returnUrl" placeholder="https://example.com/success" />
+      </div>
+      <button class="btn" onclick="generatePaymentLink()">Link yaratish</button>
+      <pre class="response-box" id="pl-resp"></pre>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const BASE = 'http://localhost:2007/api/v1/payment';
+
+  function apiKey() {
+    return document.getElementById('globalApiKey').value.trim();
+  }
+
+  function headers(withBody = true) {
+    const h = { 'Content-Type': 'application/json' };
+    const k = apiKey();
+    if (k) h['x-api-key'] = k;
+    return h;
+  }
+
+  function show(elId, data, ok) {
+    const el = document.getElementById(elId);
+    el.style.display = 'block';
+    el.className = 'response-box ' + (ok ? 'success' : 'error');
+    el.textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function call(method, path, body, respId) {
+    try {
+      const opts = { method, headers: headers() };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(BASE + path, opts);
+      const json = await res.json();
+      show(respId, json, res.ok);
+    } catch (e) {
+      show(respId, { error: e.message }, false);
+    }
+  }
+
+  function val(id) { return document.getElementById(id).value.trim(); }
+  function num(id) { return Number(document.getElementById(id).value); }
+
+  function createCard() {
+    call('POST', '/cards', {
+      userId: val('cc-userId'),
+      cardNumber: val('cc-cardNumber'),
+      expireDate: val('cc-expireDate'),
+      phoneNumber: val('cc-phoneNumber'),
+    }, 'cc-resp');
+  }
+
+  function confirmCard() {
+    const body = { cardId: val('conf-cardId'), otp: val('conf-otp') };
+    const name = val('conf-cardName');
+    if (name) body.cardName = name;
+    call('POST', '/cards/confirm', body, 'conf-resp');
+  }
+
+  function getCard() {
+    call('GET', '/cards/' + val('gc-cardId'), null, 'gc-resp');
+  }
+
+  function deleteCard() {
+    call('DELETE', '/cards/' + val('dc-cardId'), null, 'dc-resp');
+  }
+
+  function createTransaction() {
+    let account;
+    try { account = JSON.parse(document.getElementById('ct-account').value); }
+    catch { return show('ct-resp', { error: 'account JSON noto\'g\'ri' }, false); }
+    call('POST', '/transactions', {
+      userId: val('ct-userId'),
+      amount: num('ct-amount'),
+      account,
+    }, 'ct-resp');
+  }
+
+  function payTransaction() {
+    call('POST', '/transactions/pay', {
+      transactionId: val('pt-transactionId'),
+      cardId: val('pt-cardId'),
+      userId: val('pt-userId'),
+    }, 'pt-resp');
+  }
+
+  function getTransaction() {
+    call('GET', '/transactions?transactionId=' + val('gt-transactionId'), null, 'gt-resp');
+  }
+
+  function generatePaymentLink() {
+    call('POST', '/payment-link', {
+      amount: num('pl-amount'),
+      orderId: val('pl-orderId'),
+      returnUrl: val('pl-returnUrl'),
+    }, 'pl-resp');
+  }
+</script>
+</body>
+</html>

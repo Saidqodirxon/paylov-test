@@ -1,0 +1,41 @@
+<body>
+<nav class="topnav">
+  <a class="nav-logo" href="/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="2" y="5" width="20" height="14" rx="3"/>
+      <path d="M2 10h20"/>
+    </svg>
+    Paylov
+  </a>
+
+  <div class="nav-links">
+    <a class="nav-link <%= activePage==='home' ? 'active' : '' %>" href="/">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <span>Bosh sahifa</span>
+    </a>
+    <a class="nav-link <%= activePage==='cards' ? 'active' : '' %>" href="/cards">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
+      <span>Kartalar</span>
+    </a>
+    <a class="nav-link <%= activePage==='payments' ? 'active' : '' %>" href="/payments">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      <span>To'lovlar</span>
+    </a>
+    <a class="nav-link <%= activePage==='payment-link' ? 'active' : '' %>" href="/payment-link">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span>To'lov linki</span>
+    </a>
+  </div>
+
+  <span class="nav-env" id="navEnv">...</span>
+</nav>
+
+<script>
+  fetch('/health').then(r=>r.json()).then(d=>{
+    document.getElementById('navEnv').textContent = d.status === 'ok' ? '● Online' : '● Offline';
+    document.getElementById('navEnv').style.color = d.status === 'ok' ? '#86efac' : '#f87171';
+  }).catch(()=>{
+    document.getElementById('navEnv').textContent = '● Offline';
+    document.getElementById('navEnv').style.color = '#f87171';
+  });
+</script>

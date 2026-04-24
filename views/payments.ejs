@@ -1,0 +1,203 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<div class="page">
+  <div class="page-header">
+    <h1>⚡ To'lovlar</h1>
+    <p>Tranzaksiya yaratish, to'lovni amalga oshirish va holat tekshirish</p>
+  </div>
+
+  <!-- API Key -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-body" style="flex-direction:row;align-items:center;gap:10px;padding:12px 18px">
+      <label style="font-size:0.78rem;color:var(--muted);white-space:nowrap;margin:0">X-API-Key:</label>
+      <input type="password" id="gApiKey" placeholder="INTERNAL_API_KEY (bo'sh — dev rejim)" style="margin:0" />
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ── TRANZAKSIYA YARATISH ─────────────────────────────── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <span class="card-title">Tranzaksiya yaratish</span>
+        <span class="card-path">/transactions</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>userId *</label>
+          <input id="ct-userId" placeholder="user_001" value="user_001" />
+        </div>
+        <div class="field">
+          <label>amount * (so'm)</label>
+          <input id="ct-amount" type="number" placeholder="10000" min="1" />
+        </div>
+        <div class="field">
+          <label>account * (JSON)</label>
+          <textarea id="ct-account" placeholder='{"store_id": "123"}'>{}</textarea>
+        </div>
+        <button class="btn btn-primary" id="ct-btn" onclick="createTransaction()">
+          <span class="spinner" id="ct-spin"></span>
+          Tranzaksiya yaratish
+        </button>
+
+        <div class="alert alert-success" id="ct-alert"></div>
+        <pre class="resp" id="ct-resp"></pre>
+
+        <div id="ct-autofill" style="display:none">
+          <div style="font-size:0.75rem;color:var(--muted);margin-bottom:6px">
+            Tranzaksiya IDsi — "To'lovni amalga oshirish" formasiga ko'chirish:
+          </div>
+          <div class="copy-row">
+            <input id="ct-savedId" readonly style="font-family:monospace;font-size:0.78rem;background:#0a1422" />
+            <button class="btn-copy" onclick="autofillTxn()">To'lov →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TO'LOVNI AMALGA OSHIRISH ─────────────────────────── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <span class="card-title">To'lovni amalga oshirish</span>
+        <span class="card-path">/transactions/pay</span>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info" id="pt-autoinfo" style="display:none">
+          ✅ Tranzaksiya IDsi avtomatik to'ldirildi
+        </div>
+        <div class="field">
+          <label>transactionId *</label>
+          <input id="pt-txnId" placeholder="Tranzaksiya IDsi" />
+        </div>
+        <div class="field">
+          <label>cardId *</label>
+          <input id="pt-cardId" placeholder="Tasdiqlangan karta IDsi" />
+        </div>
+        <div class="field">
+          <label>userId *</label>
+          <input id="pt-userId" placeholder="user_001" value="user_001" />
+        </div>
+        <button class="btn btn-success" id="pt-btn" onclick="payTransaction()">
+          <span class="spinner" id="pt-spin"></span>
+          To'lash
+        </button>
+        <pre class="resp" id="pt-resp"></pre>
+      </div>
+    </div>
+
+    <!-- ── TRANZAKSIYA MA'LUMOTI ──────────────────────────────── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-get">GET</span>
+        <span class="card-title">Tranzaksiya holati</span>
+        <span class="card-path">/transactions?transactionId=</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>transactionId *</label>
+          <input id="gt-txnId" placeholder="txn_xxx" />
+        </div>
+        <button class="btn btn-primary" id="gt-btn" onclick="getTransaction()">
+          <span class="spinner" id="gt-spin"></span>
+          Holat tekshirish
+        </button>
+        <pre class="resp" id="gt-resp"></pre>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const BASE = '/api/v1/payment';
+  const apiKey = () => document.getElementById('gApiKey').value.trim();
+
+  function hdrs() {
+    const h = { 'Content-Type': 'application/json' };
+    const k = apiKey();
+    if (k) h['x-api-key'] = k;
+    return h;
+  }
+
+  function show(id, data, ok) {
+    const el = document.getElementById(id);
+    el.className = 'resp show ' + (ok ? 'ok' : 'err');
+    el.textContent = JSON.stringify(data, null, 2);
+  }
+
+  function setLoad(btnId, spinId, on) {
+    document.getElementById(btnId).disabled = on;
+    document.getElementById(spinId).style.display = on ? 'block' : 'none';
+  }
+
+  function val(id) { return document.getElementById(id).value.trim(); }
+  function num(id) { return Number(document.getElementById(id).value); }
+
+  async function createTransaction() {
+    let account;
+    try { account = JSON.parse(document.getElementById('ct-account').value); }
+    catch { return show('ct-resp', { error: "account maydoni to'g'ri JSON emas" }, false); }
+
+    setLoad('ct-btn', 'ct-spin', true);
+    try {
+      const res = await fetch(BASE + '/transactions', {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({ userId: val('ct-userId'), amount: num('ct-amount'), account })
+      });
+      const json = await res.json();
+      show('ct-resp', json, res.ok);
+
+      if (res.ok) {
+        const txnId = json.data?.transactionId || json.data?.id;
+        if (txnId) {
+          document.getElementById('ct-savedId').value = txnId;
+          document.getElementById('ct-autofill').style.display = 'block';
+        }
+        const alert = document.getElementById('ct-alert');
+        alert.textContent = '✅ Tranzaksiya yaratildi!';
+        alert.className = 'alert alert-success show';
+      }
+    } catch(e) { show('ct-resp', { error: e.message }, false); }
+    setLoad('ct-btn', 'ct-spin', false);
+  }
+
+  function autofillTxn() {
+    const txnId = document.getElementById('ct-savedId').value;
+    document.getElementById('pt-txnId').value = txnId;
+    document.getElementById('gt-txnId').value = txnId;
+    const info = document.getElementById('pt-autoinfo');
+    info.style.display = 'block';
+    info.className = 'alert alert-info show';
+    document.getElementById('pt-txnId').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  async function payTransaction() {
+    setLoad('pt-btn', 'pt-spin', true);
+    try {
+      const res = await fetch(BASE + '/transactions/pay', {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({
+          transactionId: val('pt-txnId'),
+          cardId: val('pt-cardId'),
+          userId: val('pt-userId'),
+        })
+      });
+      show('pt-resp', await res.json(), res.ok);
+    } catch(e) { show('pt-resp', { error: e.message }, false); }
+    setLoad('pt-btn', 'pt-spin', false);
+  }
+
+  async function getTransaction() {
+    setLoad('gt-btn', 'gt-spin', true);
+    try {
+      const res = await fetch(BASE + '/transactions?transactionId=' + val('gt-txnId'), { headers: hdrs() });
+      show('gt-resp', await res.json(), res.ok);
+    } catch(e) { show('gt-resp', { error: e.message }, false); }
+    setLoad('gt-btn', 'gt-spin', false);
+  }
+</script>
+
+<%- include('partials/footer') %>

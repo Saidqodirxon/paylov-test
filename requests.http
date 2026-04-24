@@ -1,5 +1,5 @@
 ### Health check
-GET http://localhost:5000/health
+GET http://localhost:2007/health
 
 
 # ─── CARD FLOW ──────────────────────────────────────────────────────────────────
@@ -8,7 +8,7 @@ GET http://localhost:5000/health
 # Step 3: Store the returned cardId from confirm response
 
 ### 1. Create Card  (Paylov sends OTP SMS — you do NOT send SMS)
-POST http://localhost:5000/api/v1/payment/cards
+POST http://localhost:2007/api/v1/payment/cards
 Content-Type: application/json
 
 {
@@ -20,7 +20,7 @@ Content-Type: application/json
 
 
 ### 2. Confirm Card OTP  → returns final cardId, store it in your DB
-POST http://localhost:5000/api/v1/payment/cards/confirm
+POST http://localhost:2007/api/v1/payment/cards/confirm
 Content-Type: application/json
 
 {
@@ -31,11 +31,11 @@ Content-Type: application/json
 
 
 ### 3. Get Card
-GET http://localhost:5000/api/v1/payment/cards/{{cardId}}
+GET http://localhost:2007/api/v1/payment/cards/{{cardId}}
 
 
 ### 4. Delete (deactivate) Card  — marks inactive in DB, no Paylov API call
-DELETE http://localhost:5000/api/v1/payment/cards/{{cardId}}
+DELETE http://localhost:2007/api/v1/payment/cards/{{cardId}}
 
 
 # ─── DIRECT PAYMENT FLOW (API) ─────────────────────────────────────────────────
@@ -43,12 +43,12 @@ DELETE http://localhost:5000/api/v1/payment/cards/{{cardId}}
 # Step 5 → Step 6 → Step 7
 
 ### 5. Create Transaction
-POST http://localhost:5000/api/v1/payment/transactions
+POST http://localhost:2007/api/v1/payment/transactions
 Content-Type: application/json
 
 {
   "userId": "user_123",
-  "amount": 50000,
+  "amount": 20070,
   "account": {
     "order_id": "ORDER-001",
     "description": "Purchase #001"
@@ -57,7 +57,7 @@ Content-Type: application/json
 
 
 ### 6. Pay (charge the card)
-POST http://localhost:5000/api/v1/payment/transactions/pay
+POST http://localhost:2007/api/v1/payment/transactions/pay
 Content-Type: application/json
 
 {
@@ -68,7 +68,7 @@ Content-Type: application/json
 
 
 ### 7. Get Transaction Status
-GET http://localhost:5000/api/v1/payment/transactions?transactionId={{transactionId}}
+GET http://localhost:2007/api/v1/payment/transactions?transactionId={{transactionId}}
 
 
 # ─── CHECKOUT LINK (no card binding) ───────────────────────────────────────────
@@ -76,11 +76,11 @@ GET http://localhost:5000/api/v1/payment/transactions?transactionId={{transactio
 # Returns a URL you redirect the user to for manual payment on Paylov's page
 
 ### 8. Generate Checkout Link
-POST http://localhost:5000/api/v1/payment/payment-link
+POST http://localhost:2007/api/v1/payment/payment-link
 Content-Type: application/json
 
 {
-  "amount": 50000,
+  "amount": 20070,
   "returnUrl": "https://yourapp.com/payment/success",
   "orderId": "ORDER-001"
 }

@@ -1,0 +1,269 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<div class="page">
+  <div class="page-header">
+    <h1>💳 Kartalar</h1>
+    <p>Karta qo'shish, OTP tasdiqlash va karta boshqaruvi</p>
+  </div>
+
+  <!-- API Key -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-body" style="flex-direction:row;align-items:center;gap:10px;padding:12px 18px">
+      <label style="font-size:0.78rem;color:var(--muted);white-space:nowrap;margin:0">X-API-Key:</label>
+      <input type="password" id="gApiKey" placeholder="INTERNAL_API_KEY (bo'sh — dev rejim)" style="margin:0" />
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- ── KARTA YARATISH (2 qadamli) ──────────────────────── -->
+    <div class="card" style="grid-column: 1 / -1">
+      <div class="card-header">
+        <span class="badge badge-post">POST</span>
+        <span class="card-title">Karta qo'shish</span>
+        <span class="card-path">/cards &rarr; /cards/confirm</span>
+      </div>
+      <div class="card-body">
+        <!-- Steps indicator -->
+        <div class="steps" id="cardSteps">
+          <div class="step active" id="step1-ind">
+            <div class="step-num">1</div>
+            <span>Karta ma'lumoti</span>
+          </div>
+          <div class="step" id="step2-ind">
+            <div class="step-num">2</div>
+            <span>OTP tasdiqlash</span>
+          </div>
+          <div class="step" id="step3-ind">
+            <div class="step-num">✓</div>
+            <span>Tayyor</span>
+          </div>
+        </div>
+
+        <!-- Step 1 form -->
+        <div id="step1-form">
+          <div class="grid">
+            <div class="field">
+              <label>userId *</label>
+              <input id="cc-userId" placeholder="user_001" value="user_001" />
+            </div>
+            <div class="field">
+              <label>cardNumber * (16 raqam)</label>
+              <input id="cc-cardNumber" placeholder="8600123456789012" maxlength="16" />
+            </div>
+            <div class="field">
+              <label>expireDate * (MMYY)</label>
+              <input id="cc-expireDate" placeholder="0929" maxlength="4" />
+            </div>
+            <div class="field">
+              <label>phoneNumber * (+998XXXXXXXXX)</label>
+              <input id="cc-phone" placeholder="+998901234567" />
+            </div>
+          </div>
+          <button class="btn btn-primary" id="cc-btn" onclick="createCard()" style="margin-top:8px">
+            <span class="spinner" id="cc-spin"></span>
+            Karta qo'shish va OTP yuborish
+          </button>
+        </div>
+
+        <!-- Step 2 form (hidden initially) -->
+        <div id="step2-form" style="display:none">
+          <div class="alert alert-info show">
+            📱 Kartangizga bog'liq telefon raqamiga OTP kodi yuborildi
+          </div>
+          <div class="grid">
+            <div class="field">
+              <label>cardId * (avtomatik to'ldirildi)</label>
+              <input id="conf-cardId" readonly style="background:#0a1422" />
+            </div>
+            <div class="field">
+              <label>OTP kod *</label>
+              <input id="conf-otp" placeholder="1234" maxlength="8" autofocus />
+            </div>
+            <div class="field">
+              <label>Karta nomi</label>
+              <input id="conf-name" placeholder="My Card" value="My Card" />
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:8px">
+            <button class="btn btn-outline" style="width:auto;padding:9px 18px" onclick="resetCardForm()">← Orqaga</button>
+            <button class="btn btn-success" id="conf-btn" onclick="confirmCard()">
+              <span class="spinner" id="conf-spin"></span>
+              Tasdiqlash
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3 success (hidden initially) -->
+        <div id="step3-form" style="display:none">
+          <div class="alert alert-success show">
+            ✅ Karta muvaffaqiyatli qo'shildi!
+          </div>
+          <div class="field">
+            <label>Karta ID (saqlab oling)</label>
+            <div class="copy-row">
+              <input id="saved-cardId" readonly style="background:#0a1422;font-family:monospace" />
+              <button class="btn-copy" onclick="copyCardId()">Nusxa</button>
+            </div>
+          </div>
+          <button class="btn btn-outline" style="margin-top:8px" onclick="resetCardForm()">+ Yangi karta qo'shish</button>
+        </div>
+
+        <pre class="resp" id="cc-resp"></pre>
+      </div>
+    </div>
+
+    <!-- ── KARTA MA'LUMOTI ──────────────────────────────────── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-get">GET</span>
+        <span class="card-title">Karta ma'lumoti</span>
+        <span class="card-path">/cards/:id</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>cardId *</label>
+          <input id="gc-cardId" placeholder="card_xxx" />
+        </div>
+        <button class="btn btn-primary" id="gc-btn" onclick="getCard()">
+          <span class="spinner" id="gc-spin"></span>
+          Ma'lumot olish
+        </button>
+        <pre class="resp" id="gc-resp"></pre>
+      </div>
+    </div>
+
+    <!-- ── KARTANI O'CHIRISH ──────────────────────────────── -->
+    <div class="card">
+      <div class="card-header">
+        <span class="badge badge-del">DEL</span>
+        <span class="card-title">Kartani o'chirish</span>
+        <span class="card-path">/cards/:id</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>cardId *</label>
+          <input id="dc-cardId" placeholder="card_xxx" />
+        </div>
+        <button class="btn btn-danger" id="dc-btn" onclick="deleteCard()">
+          <span class="spinner" id="dc-spin"></span>
+          O'chirish
+        </button>
+        <pre class="resp" id="dc-resp"></pre>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const BASE = '/api/v1/payment';
+  const apiKey = () => document.getElementById('gApiKey').value.trim();
+
+  function hdrs() {
+    const h = { 'Content-Type': 'application/json' };
+    const k = apiKey();
+    if (k) h['x-api-key'] = k;
+    return h;
+  }
+
+  function show(id, data, ok) {
+    const el = document.getElementById(id);
+    el.className = 'resp show ' + (ok ? 'ok' : 'err');
+    el.textContent = JSON.stringify(data, null, 2);
+  }
+
+  function setLoading(btnId, spinId, loading) {
+    document.getElementById(btnId).disabled = loading;
+    document.getElementById(spinId).style.display = loading ? 'block' : 'none';
+  }
+
+  function val(id) { return document.getElementById(id).value.trim(); }
+
+  async function createCard() {
+    setLoading('cc-btn', 'cc-spin', true);
+    try {
+      const res = await fetch(BASE + '/cards', {
+        method: 'POST', headers: hdrs(),
+        body: JSON.stringify({
+          userId: val('cc-userId'),
+          cardNumber: val('cc-cardNumber'),
+          expireDate: val('cc-expireDate'),
+          phoneNumber: val('cc-phone'),
+        })
+      });
+      const json = await res.json();
+      show('cc-resp', json, res.ok);
+      if (res.ok && json.data && json.data.cardId) {
+        document.getElementById('conf-cardId').value = json.data.cardId;
+        goStep(2);
+      }
+    } catch(e) { show('cc-resp', { error: e.message }, false); }
+    setLoading('cc-btn', 'cc-spin', false);
+  }
+
+  async function confirmCard() {
+    setLoading('conf-btn', 'conf-spin', true);
+    const body = { cardId: val('conf-cardId'), otp: val('conf-otp') };
+    const n = val('conf-name');
+    if (n) body.cardName = n;
+    try {
+      const res = await fetch(BASE + '/cards/confirm', {
+        method: 'POST', headers: hdrs(), body: JSON.stringify(body)
+      });
+      const json = await res.json();
+      show('cc-resp', json, res.ok);
+      if (res.ok) {
+        const cid = json.data?.card?.id || json.data?.cardId || val('conf-cardId');
+        document.getElementById('saved-cardId').value = cid;
+        goStep(3);
+      }
+    } catch(e) { show('cc-resp', { error: e.message }, false); }
+    setLoading('conf-btn', 'conf-spin', false);
+  }
+
+  async function getCard() {
+    setLoading('gc-btn', 'gc-spin', true);
+    try {
+      const res = await fetch(BASE + '/cards/' + val('gc-cardId'), { headers: hdrs() });
+      show('gc-resp', await res.json(), res.ok);
+    } catch(e) { show('gc-resp', { error: e.message }, false); }
+    setLoading('gc-btn', 'gc-spin', false);
+  }
+
+  async function deleteCard() {
+    if (!confirm('Haqiqatan o\'chirishni xohlaysizmi?')) return;
+    setLoading('dc-btn', 'dc-spin', true);
+    try {
+      const res = await fetch(BASE + '/cards/' + val('dc-cardId'), {
+        method: 'DELETE', headers: hdrs()
+      });
+      show('dc-resp', await res.json(), res.ok);
+    } catch(e) { show('dc-resp', { error: e.message }, false); }
+    setLoading('dc-btn', 'dc-spin', false);
+  }
+
+  function goStep(n) {
+    document.getElementById('step1-form').style.display = n === 1 ? 'block' : 'none';
+    document.getElementById('step2-form').style.display = n === 2 ? 'block' : 'none';
+    document.getElementById('step3-form').style.display = n === 3 ? 'block' : 'none';
+    ['step1-ind','step2-ind','step3-ind'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.className = 'step';
+      if (i + 1 < n) el.className += ' done';
+      else if (i + 1 === n) el.className += ' active';
+    });
+  }
+
+  function resetCardForm() { goStep(1); }
+
+  function copyCardId() {
+    navigator.clipboard.writeText(document.getElementById('saved-cardId').value);
+    const btn = event.target;
+    btn.textContent = 'Nusxalandi!';
+    setTimeout(() => btn.textContent = 'Nusxa', 1500);
+  }
+</script>
+
+<%- include('partials/footer') %>

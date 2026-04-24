@@ -1,0 +1,94 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Bosh sahifa</h1>
+    <p>Paylov to'lov tizimi boshqaruv paneli</p>
+  </div>
+
+  <!-- Health bar -->
+  <div class="health-bar" id="healthBar">
+    <span class="dot" id="healthDot"></span>
+    <span class="status" id="healthStatus">Tekshirilmoqda...</span>
+    <span class="ts" id="healthTs"></span>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="grid grid-3" style="margin-bottom:32px">
+    <a class="qa-card" href="/cards">
+      <div class="qa-icon">💳</div>
+      <div class="qa-title">Kartalar</div>
+      <div class="qa-desc">Karta qo'shish, OTP tasdiqlash, karta ma'lumotlari va o'chirish</div>
+      <div class="qa-arrow">Ochish →</div>
+    </a>
+    <a class="qa-card" href="/payments">
+      <div class="qa-icon">⚡</div>
+      <div class="qa-title">To'lovlar</div>
+      <div class="qa-desc">Tranzaksiya yaratish, to'lovni amalga oshirish va holat tekshirish</div>
+      <div class="qa-arrow">Ochish →</div>
+    </a>
+    <a class="qa-card" href="/payment-link">
+      <div class="qa-icon">🔗</div>
+      <div class="qa-title">To'lov linki</div>
+      <div class="qa-desc">Paylov checkout sahifasiga yo'naltiruvchi link yaratish</div>
+      <div class="qa-arrow">Ochish →</div>
+    </a>
+  </div>
+
+  <!-- API summary -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">API endpointlar</span>
+    </div>
+    <div class="card-body" style="gap:0;padding:0">
+      <table style="width:100%;border-collapse:collapse;font-size:0.82rem">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border)">
+            <th style="padding:10px 18px;text-align:left;color:var(--muted);font-weight:600;width:90px">Metod</th>
+            <th style="padding:10px 18px;text-align:left;color:var(--muted);font-weight:600">Endpoint</th>
+            <th style="padding:10px 18px;text-align:left;color:var(--muted);font-weight:600;display:none" class="th-desc">Vazifa</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% const endpoints = [
+            { m:'POST', p:'/api/v1/payment/cards', d:"Karta yaratish (OTP yuborish)", t:'post' },
+            { m:'POST', p:'/api/v1/payment/cards/confirm', d:"OTP tasdiqlash", t:'post' },
+            { m:'GET',  p:'/api/v1/payment/cards/:id', d:"Karta ma'lumoti", t:'get' },
+            { m:'DEL',  p:'/api/v1/payment/cards/:id', d:"Kartani o'chirish", t:'del' },
+            { m:'POST', p:'/api/v1/payment/transactions', d:"Tranzaksiya yaratish", t:'post' },
+            { m:'POST', p:'/api/v1/payment/transactions/pay', d:"To'lovni amalga oshirish", t:'post' },
+            { m:'GET',  p:'/api/v1/payment/transactions', d:"Tranzaksiya holati", t:'get' },
+            { m:'POST', p:'/api/v1/payment/payment-link', d:"To'lov linki yaratish", t:'post' },
+          ]; %>
+          <% endpoints.forEach((e, i) => { %>
+          <tr style="border-bottom:1px solid <%= i < endpoints.length-1 ? 'var(--border)' : 'transparent' %>">
+            <td style="padding:10px 18px">
+              <span class="badge badge-<%= e.t %>"><%= e.m %></span>
+            </td>
+            <td style="padding:10px 18px;font-family:monospace;font-size:0.78rem;color:var(--accent)"><%= e.p %></td>
+            <td style="padding:10px 18px;color:var(--muted);display:none" class="td-desc"><%= e.d %></td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+  fetch('/health').then(r=>r.json()).then(d=>{
+    document.getElementById('healthDot').className = 'dot ' + (d.status === 'ok' ? 'green' : 'red');
+    document.getElementById('healthStatus').textContent = d.status === 'ok' ? 'Server ishlayapti' : 'Server ishlamayapti';
+    document.getElementById('healthTs').textContent = new Date(d.ts).toLocaleTimeString('uz-UZ');
+  }).catch(()=>{
+    document.getElementById('healthDot').className = 'dot red';
+    document.getElementById('healthStatus').textContent = 'Server bilan ulanib bo\'lmadi';
+  });
+
+  if (window.innerWidth > 700) {
+    document.querySelectorAll('.th-desc, .td-desc').forEach(el => el.style.display = 'table-cell');
+  }
+</script>
+
+<%- include('partials/footer') %>
